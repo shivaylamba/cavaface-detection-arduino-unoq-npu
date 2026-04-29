@@ -4,7 +4,7 @@ Arduino UNO Q Face Guard is a proximity-triggered face recognition project.
 An Arduino UNO Q watches a Modulino Distance sensor, a laptop captures a face
 frame from the camera, the selected face model creates a face embedding, and a
 Modulino Buzzer sounds only when the face is unknown. MobileFaceNet is the
-current default; CavaFace is still available as a fallback.
+current default; CavaFace is still available as a fallback. You can select between the two models. 
 
 <img width="1755" height="1089" alt="Screenshot 2026-04-29 193109" src="https://github.com/user-attachments/assets/e3ac9068-150c-41d9-9786-09c196550a0a" />
 
