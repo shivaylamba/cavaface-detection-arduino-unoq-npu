@@ -1,4 +1,4 @@
-# Arduino UNO Q Face Guard
+# Arduino UNO Q Face Guard Demo Example
 
 Arduino UNO Q Face Guard is a proximity-triggered face recognition project.
 An Arduino UNO Q watches a Modulino Distance sensor, a laptop captures a face
