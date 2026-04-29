@@ -5,6 +5,8 @@ An Arduino UNO Q watches a Modulino Distance sensor, a laptop captures a face
 frame from the camera, CavaFace creates a face embedding, and a Modulino Buzzer
 sounds only when the face is unknown.
 
+<img width="1755" height="1089" alt="Screenshot 2026-04-29 193109" src="https://github.com/user-attachments/assets/e3ac9068-150c-41d9-9786-09c196550a0a" />
+
 ## Flow
 
 1. Modulino Distance detects something close to the sensor.
