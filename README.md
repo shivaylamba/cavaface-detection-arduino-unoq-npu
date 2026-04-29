@@ -2,8 +2,9 @@
 
 Arduino UNO Q Face Guard is a proximity-triggered face recognition project.
 An Arduino UNO Q watches a Modulino Distance sensor, a laptop captures a face
-frame from the camera, CavaFace creates a face embedding, and a Modulino Buzzer
-sounds only when the face is unknown.
+frame from the camera, the selected face model creates a face embedding, and a
+Modulino Buzzer sounds only when the face is unknown. MobileFaceNet is the
+current default; CavaFace is still available as a fallback.
 
 <img width="1755" height="1089" alt="Screenshot 2026-04-29 193109" src="https://github.com/user-attachments/assets/e3ac9068-150c-41d9-9786-09c196550a0a" />
 
@@ -16,8 +17,9 @@ sounds only when the face is unknown.
 4. The browser supplies a face box when Chrome's FaceDetector API is available.
    The app can also use OpenCV when installed, or a center crop fallback on
    Windows ARM64 where OpenCV wheels are not available.
-5. CavaFace creates a 512-dimensional embedding. On Snapdragon X Elite Windows
-   laptops, the CavaFace ONNX model can run on the NPU through ONNX Runtime QNN.
+5. MobileFaceNet creates a 128-dimensional embedding by default. CavaFace can
+   still be selected for 512-dimensional embeddings. On Snapdragon X Elite
+   Windows laptops, local ONNX models run on the NPU through ONNX Runtime QNN.
 6. The app compares that embedding with enrolled known faces using cosine
    similarity.
 7. If the face is unknown, the laptop calls the UNO Q firmware and the Modulino
@@ -40,7 +42,7 @@ firmware/arduino_q_face_guard/       Main UNO Q RouterBridge firmware
 firmware/modulino_i2c_visual_probe/  Matrix + Modulino hardware probe
 firmware/matrix_liveness/            UNO Q LED matrix liveness test
 laptop_ai_guard/run_guard.py         Laptop camera, recognition, and buzzer bridge
-laptop_ai_guard/demo_dashboard.html  Browser UI for the retail store demo
+laptop_ai_guard/demo_dashboard.html  Browser UI for the live demo
 laptop_ai_guard/enroll_faces.py      Known-user enrollment script
 laptop_ai_guard/face_engine.py       Face detection, embeddings, cosine matching
 ```
@@ -50,6 +52,7 @@ Runtime artifacts are intentionally ignored by git:
 - `laptop_ai_guard/.venv/`
 - `laptop_ai_guard/captures/`
 - `laptop_ai_guard/known_faces/*.npz`
+- `laptop_ai_guard/known_faces_mobilefacenet/*.npz`
 - `laptop_ai_guard/models/`
 - `*.log`
 
@@ -99,11 +102,13 @@ OpenCV currently does not publish Windows ARM64 wheels, and `qai-hub-models` is
 used only to export the model. The demo uses the browser camera bridge and ONNX
 Runtime QNN locally. The `platform.machine()` check above should print `ARM64`.
 
-### CavaFace And MediaPipe Models
+### MobileFaceNet, CavaFace, And MediaPipe Models
 
 The Windows/X Elite demo expects local ONNX assets in the ignored models folder:
 
 ```text
+laptop_ai_guard/models/mobilefacenet/mobilefacenet.onnx
+laptop_ai_guard/models/mobilefacenet/mobilefacenet.onnx.data
 laptop_ai_guard/models/cavaface/cavaface.onnx
 laptop_ai_guard/models/media_pipe/media_pipe.onnx
 ```
@@ -111,7 +116,8 @@ laptop_ai_guard/models/media_pipe/media_pipe.onnx
 These files are intentionally ignored by git. If they are not present, copy
 them from the working Windows NPU package before running the guard. You can
 still override the defaults with `--model-path`, `--detector-model-path`,
-`CAVAFACE_MODEL_PATH`, or `FACE_DETECTOR_MODEL_PATH`.
+`FACE_MODEL_PATH`, `MOBILEFACENET_MODEL_PATH`, `CAVAFACE_MODEL_PATH`, or
+`FACE_DETECTOR_MODEL_PATH`.
 
 ## Enroll A Known Face
 
@@ -129,7 +135,9 @@ Or enroll from the browser camera bridge:
 python enroll_faces.py --name current_user --camera --samples 8
 ```
 
-Enrollment creates `laptop_ai_guard/known_faces/embeddings.npz`.
+MobileFaceNet enrollment creates
+`laptop_ai_guard/known_faces_mobilefacenet/embeddings.npz`. CavaFace enrollment
+creates `laptop_ai_guard/known_faces/embeddings.npz`.
 
 ## How Known Faces Are Stored
 
@@ -143,11 +151,11 @@ That file contains two arrays:
 
 ```text
 names       shape: (N,)
-embeddings  shape: (N, 512)
+embeddings  shape: (N, 128) for MobileFaceNet or (N, 512) for CavaFace
 ```
 
-Each row in `embeddings` is one normalized CavaFace face embedding. The matching
-entry in `names` is the label for that embedding.
+Each row in `embeddings` is one normalized face embedding from the selected
+model. The matching entry in `names` is the label for that embedding.
 
 Example:
 
@@ -177,8 +185,8 @@ the UNO Q firmware.
 ### Add Known Faces With The Script
 
 The preferred way to add known faces is `enroll_faces.py`, because it detects the
-face, crops it, runs CavaFace, normalizes the embedding, appends it to the array,
-and saves the `.npz` file.
+face, crops it, runs the selected model, normalizes the embedding, appends it to
+the array, and saves the `.npz` file.
 
 ```bash
 python enroll_faces.py --name current_user \
@@ -224,8 +232,8 @@ is ignored by this repository on purpose.
 
 ## Run The Guard
 
-The Windows/X Elite store-demo path opens a browser dashboard, uses MediaPipe
-face detection, runs CavaFace on ONNX Runtime QNN, and talks to the UNO Q
+The Windows/X Elite demo path opens a browser dashboard, uses MediaPipe face
+detection, runs MobileFaceNet on ONNX Runtime QNN, and talks to the UNO Q
 through RouterBridge:
 
 ```powershell
@@ -236,6 +244,7 @@ cd C:\Users\Public\Downloads\arduino\arduino-face-detection
   --adb-path .\.codex_tmp\arduino-data\packages\arduino\tools\adb\32.0.0\adb.exe `
   --camera-source browser `
   --browser-timeout 180 `
+  --recognition-model mobilefacenet `
   --face-detector mediapipe `
   --model-runtime onnx-qnn `
   --threshold 0.50 `
@@ -255,7 +264,7 @@ URL for the real demo. The file preview can draw the page, but it cannot read
 the known-face database or enroll new faces. Allow camera access and keep the
 tab open. The dashboard shows the live camera,
 distance sensor state, face match result, buzzer decision, known-face database,
-and the retail setup architecture.
+and the demo setup architecture.
 
 The dashboard has three views:
 
@@ -263,12 +272,19 @@ The dashboard has three views:
 - `Known Faces`: names and sample counts currently stored in the local database.
 - `Add Known Face`: guided enrollment from the live camera.
 
-Adding a known face does not retrain CavaFace. It captures several local face
-samples, converts them into 512-dimensional CavaFace embeddings, and appends
-them to:
+Adding a known face does not retrain the neural network. It captures several
+local face samples, converts them into embeddings from the selected model, and
+appends them to the model-specific database:
 
 ```text
+laptop_ai_guard/known_faces_mobilefacenet/embeddings.npz
 laptop_ai_guard/known_faces/embeddings.npz
+```
+
+To compare against the old model, run the same app with:
+
+```powershell
+--recognition-model cavaface
 ```
 
 The newly added person appears immediately in `Known Faces` and can be matched
@@ -309,8 +325,8 @@ Recognition threshold:
 
 - Lower values accept more faces as known.
 - Higher values reject more faces as unknown.
-- In testing, `0.60` worked better than the CavaFace default-style `0.50` while
-  avoiding false rejects that happened around `0.65`.
+- `0.50` is a good starting point. If unknown faces are accepted too often,
+  raise it gradually. If known faces are rejected too often, lower it.
 
 Proximity threshold:
 

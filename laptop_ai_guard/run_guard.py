@@ -24,12 +24,15 @@ import serial
 from serial.tools import list_ports
 from PIL import Image
 
-from face_engine import CameraFrame, CavaFaceRecognizer, FaceDatabase
+from face_engine import CameraFrame, CavaFaceRecognizer, FaceDatabase, MobileFaceNetRecognizer
 
 
-DEFAULT_DATABASE = Path(__file__).resolve().parent / "known_faces" / "embeddings.npz"
+DEFAULT_CAVAFACE_DATABASE = Path(__file__).resolve().parent / "known_faces" / "embeddings.npz"
+DEFAULT_MOBILEFACENET_DATABASE = Path(__file__).resolve().parent / "known_faces_mobilefacenet" / "embeddings.npz"
 DEFAULT_CAPTURE_DIR = Path(__file__).resolve().parent / "captures"
 DATABASE_LOCK = threading.Lock()
+
+Recognizer = CavaFaceRecognizer | MobileFaceNetRecognizer
 
 
 def default_adb_path() -> Path:
@@ -81,6 +84,20 @@ def default_browser_app() -> str:
 
 DEFAULT_ADB = default_adb_path()
 DEMO_DASHBOARD_PAGE = Path(__file__).resolve().parent / "demo_dashboard.html"
+
+
+def default_database_for_model(model_name: str) -> Path:
+    if model_name == "mobilefacenet":
+        return DEFAULT_MOBILEFACENET_DATABASE
+    return DEFAULT_CAVAFACE_DATABASE
+
+
+def recognizer_display_name(recognizer: object | None) -> str:
+    return str(getattr(recognizer, "display_name", None) or "Face recognizer")
+
+
+def recognition_check_detail(recognizer: object | None) -> str:
+    return f"{recognizer_display_name(recognizer)} is running against the local known-face database."
 
 
 def load_demo_dashboard_page() -> str:
@@ -160,8 +177,9 @@ class BrowserCameraBridge:
         capture_dir: Path,
         demo_title: str,
         demo_subtitle: str,
+        model_label: str = "Face recognizer",
         database_path: Path | None = None,
-        recognizer: CavaFaceRecognizer | None = None,
+        recognizer: Recognizer | None = None,
         database: FaceDatabase | None = None,
     ):
         self.host = host
@@ -170,6 +188,7 @@ class BrowserCameraBridge:
         self.browser_app = browser_app
         self.first_frame_timeout_s = first_frame_timeout_s
         self.capture_dir = Path(capture_dir)
+        self.model_label = model_label
         self.database_path = Path(database_path) if database_path is not None else None
         self.recognizer = recognizer
         self.database = database
@@ -197,7 +216,7 @@ class BrowserCameraBridge:
                 "near": False,
             },
             "ai": {
-                "runtime": "CavaFace runs locally on the laptop.",
+                "runtime": f"{self.model_label} runs locally on the laptop.",
                 "known_faces": [],
             },
             "result": {
@@ -348,11 +367,10 @@ class BrowserCameraBridge:
             "capture_url": self.capture_url(capture_path),
         }
 
-    @staticmethod
-    def _friendly_runtime_description(description: str) -> str:
+    def _friendly_runtime_description(self, description: str) -> str:
         if "QNNExecutionProvider" in description:
-            return "CavaFace and MediaPipe run locally through ONNX Runtime QNN on the laptop NPU."
-        return description or "CavaFace runs locally on the laptop."
+            return f"{self.model_label} and MediaPipe run locally through ONNX Runtime QNN on the laptop NPU."
+        return description or f"{self.model_label} runs locally on the laptop."
 
     def start(self) -> "BrowserCameraBridge":
         bridge = self
@@ -784,7 +802,7 @@ def open_camera(camera_index: int, backend: str) -> OpenCVCamera:
     return OpenCVCamera(camera_index, backend)
 
 
-def open_capture_source(args: argparse.Namespace, recognizer: CavaFaceRecognizer | None = None, database: FaceDatabase | None = None):
+def open_capture_source(args: argparse.Namespace, recognizer: Recognizer | None = None, database: FaceDatabase | None = None):
     if args.camera_source == "browser":
         bridge = BrowserCameraBridge(
             host=args.browser_host,
@@ -795,6 +813,7 @@ def open_capture_source(args: argparse.Namespace, recognizer: CavaFaceRecognizer
             capture_dir=args.captures_dir,
             demo_title=args.demo_title,
             demo_subtitle=args.demo_subtitle,
+            model_label=recognizer_display_name(recognizer),
             database_path=args.database,
             recognizer=recognizer,
             database=database,
@@ -812,7 +831,7 @@ def open_capture_source(args: argparse.Namespace, recognizer: CavaFaceRecognizer
 
 def capture_best_face_frame(
     cap,
-    recognizer: CavaFaceRecognizer,
+    recognizer: Recognizer,
     attempts: int,
     delay_s: float,
 ) -> tuple[object, object]:
@@ -943,7 +962,7 @@ def demo_capture_url(cap, capture_path: Path | None) -> str | None:
 
 def recognize_face_event(
     cap,
-    recognizer: CavaFaceRecognizer,
+    recognizer: Recognizer,
     database: FaceDatabase,
     threshold: float,
     capture_dir: Path,
@@ -962,7 +981,7 @@ def recognize_face_event(
 def handle_proximity(
     ser: serial.Serial,
     cap,
-    recognizer: CavaFaceRecognizer,
+    recognizer: Recognizer,
     database: FaceDatabase,
     threshold: float,
     capture_dir: Path,
@@ -976,7 +995,7 @@ def handle_proximity(
             "state": "checking",
             "title": "Checking face",
             "message": "Distance trigger received. The laptop is comparing the face now.",
-            "detail": "CavaFace is running against the local known-face database.",
+            "detail": recognition_check_detail(recognizer),
             "name": None,
             "score": None,
             "capture_url": None,
@@ -1051,7 +1070,7 @@ def handle_proximity(
 def run_routerbridge_guard(
     args: argparse.Namespace,
     cap,
-    recognizer: CavaFaceRecognizer,
+    recognizer: Recognizer,
     database: FaceDatabase,
 ) -> None:
     client = RouterBridgeClient(args.adb_path, timeout_s=args.router_timeout)
@@ -1132,7 +1151,7 @@ def run_routerbridge_guard(
                         "state": "checking",
                         "title": "Checking face",
                         "message": "Distance trigger received. The laptop is comparing the face now.",
-                        "detail": "CavaFace is running against the local known-face database.",
+                        "detail": recognition_check_detail(recognizer),
                         "name": None,
                         "score": None,
                         "capture_url": None,
@@ -1234,7 +1253,7 @@ def run_routerbridge_guard(
 def run_serial_poll_guard(
     args: argparse.Namespace,
     cap,
-    recognizer: CavaFaceRecognizer,
+    recognizer: Recognizer,
     database: FaceDatabase,
     ser: serial.Serial,
 ) -> None:
@@ -1316,7 +1335,7 @@ def run_serial_poll_guard(
                         "state": "checking",
                         "title": "Checking face",
                         "message": "Distance trigger received. The laptop is comparing the face now.",
-                        "detail": "CavaFace is running against the local known-face database.",
+                        "detail": recognition_check_detail(recognizer),
                         "name": None,
                         "score": None,
                         "capture_url": None,
@@ -1467,30 +1486,45 @@ def parse_args() -> argparse.Namespace:
         default="Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer",
         help="Subtitle shown on the browser demo dashboard.",
     )
-    parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE, help="Embedding database path.")
+    parser.add_argument(
+        "--recognition-model",
+        choices=("mobilefacenet", "cavaface"),
+        default=os.environ.get("FACE_RECOGNITION_MODEL", "mobilefacenet").lower(),
+        help="Face embedding model to use. mobilefacenet is the new pipeline; cavaface keeps the previous path.",
+    )
+    parser.add_argument(
+        "--database",
+        type=Path,
+        default=None,
+        help="Embedding database path. Defaults to a model-specific database so embeddings are not mixed.",
+    )
     parser.add_argument("--captures-dir", type=Path, default=DEFAULT_CAPTURE_DIR, help="Where captured frames are saved.")
     parser.add_argument("--threshold", type=float, default=0.50, help="Known-user cosine similarity threshold.")
     parser.add_argument("--attempts", type=int, default=10, help="Webcam frames to inspect after a proximity trigger.")
     parser.add_argument("--delay", type=float, default=0.12, help="Delay between frame attempts.")
-    parser.add_argument("--flip", action="store_true", help="Use CavaFace flip ensemble for embeddings.")
+    parser.add_argument("--flip", action="store_true", help="Use CavaFace flip ensemble for embeddings. Ignored by MobileFaceNet.")
     parser.add_argument(
         "--face-detector",
         choices=("auto", "metadata", "mediapipe", "opencv", "center"),
         default="auto",
         help="Face crop source. auto uses MediaPipe if its model is present, then browser metadata/OpenCV/center.",
     )
-    model_path_default = os.environ.get("CAVAFACE_MODEL_PATH")
+    model_path_default = (
+        os.environ.get("FACE_MODEL_PATH")
+        or os.environ.get("MOBILEFACENET_MODEL_PATH")
+        or os.environ.get("CAVAFACE_MODEL_PATH")
+    )
     parser.add_argument(
         "--model-runtime",
         choices=("auto", "qaihub", "onnx-qnn", "onnx-cpu"),
         default="auto",
-        help="CavaFace runtime. Use onnx-qnn with an exported CavaFace ONNX model for the X Elite NPU.",
+        help="Model runtime. Use onnx-qnn with local ONNX models for the X Elite NPU.",
     )
     parser.add_argument(
         "--model-path",
         type=Path,
         default=Path(model_path_default) if model_path_default else None,
-        help="Path to a CavaFace .onnx file or precompiled QNN ONNX folder.",
+        help="Path to the selected recognizer .onnx file or precompiled QNN ONNX folder.",
     )
     detector_model_default = os.environ.get("FACE_DETECTOR_MODEL_PATH")
     parser.add_argument(
@@ -1511,23 +1545,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
-
-    if args.list_ports:
-        list_serial_ports()
-        return
-
-    port = choose_serial_port() if args.hardware_source == "serial" and args.port == "auto" else args.port
-    database = FaceDatabase.load(args.database)
-    if database.embeddings.size == 0:
-        print(f"Warning: no known embeddings found at {args.database}; every face will be unknown.")
-    else:
-        print(f"Loaded {len(database.names)} known embedding(s) from {args.database}")
-
-    print("Loading CavaFace model...")
-    recognizer = CavaFaceRecognizer(
-        use_flip=args.flip,
+def build_recognizer(args: argparse.Namespace) -> Recognizer:
+    common = dict(
         face_detector=args.face_detector,
         model_runtime=args.model_runtime,
         model_path=args.model_path,
@@ -1537,7 +1556,31 @@ def main() -> None:
         qnn_profile_path=args.qnn_profile_path,
         qnn_allow_cpu_fallback=args.qnn_allow_cpu_fallback,
     )
-    print(f"CavaFace runtime: {recognizer.runtime_description}")
+    if args.recognition_model == "mobilefacenet":
+        return MobileFaceNetRecognizer(**common)
+    return CavaFaceRecognizer(use_flip=args.flip, **common)
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.list_ports:
+        list_serial_ports()
+        return
+
+    port = choose_serial_port() if args.hardware_source == "serial" and args.port == "auto" else args.port
+    if args.database is None:
+        args.database = default_database_for_model(args.recognition_model)
+
+    database = FaceDatabase.load(args.database)
+    if database.embeddings.size == 0:
+        print(f"Warning: no known embeddings found at {args.database}; every face will be unknown.")
+    else:
+        print(f"Loaded {len(database.names)} known embedding(s) from {args.database}")
+
+    print(f"Loading {args.recognition_model} model...")
+    recognizer = build_recognizer(args)
+    print(f"{recognizer_display_name(recognizer)} runtime: {recognizer.runtime_description}")
     print("Opening camera source...")
     cap = open_capture_source(args, recognizer=recognizer, database=database)
 

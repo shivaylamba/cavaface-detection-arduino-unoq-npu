@@ -761,7 +761,7 @@
           <div class="step" id="step-ai">
             <div class="step-number">3</div>
             <h3>Laptop checks the face</h3>
-            <p id="ai-text">CavaFace and the detector are ready.</p>
+            <p id="ai-text">Face recognition and the detector are ready.</p>
           </div>
           <div class="step" id="step-buzzer">
             <div class="step-number">4</div>
@@ -773,7 +773,7 @@
 
       <section class="architecture-panel" aria-label="Demo architecture">
         <div class="section-head">
-          <h2>Retail Setup</h2>
+          <h2>Demo Setup</h2>
           <p class="section-note">One laptop, one UNO Q, and Modulino components working together.</p>
         </div>
         <div class="architecture-row">
@@ -783,7 +783,7 @@
           </div>
           <div class="node">
             <div class="node-title">Laptop NPU</div>
-            <div class="node-copy" id="model-copy">CavaFace runs locally with ONNX Runtime QNN.</div>
+            <div class="node-copy" id="model-copy">Face recognition runs locally with ONNX Runtime QNN.</div>
           </div>
           <div class="node">
             <div class="node-title">Arduino UNO Q</div>
@@ -840,7 +840,7 @@
           <form class="enroll-form" id="enroll-form">
             <label>
               Display name
-              <input id="enroll-name" name="name" autocomplete="off" placeholder="Example: Store Staff 1" maxlength="48">
+              <input id="enroll-name" name="name" autocomplete="off" placeholder="Example: Demo Staff 1" maxlength="48">
             </label>
             <label>
               Samples
@@ -1108,7 +1108,7 @@
         stepText.ai.textContent = "Face recognition completed.";
       } else {
         setStep("ai", "");
-        stepText.ai.textContent = "CavaFace and the detector are ready.";
+        stepText.ai.textContent = "Face recognition and the detector are ready.";
       }
 
       if (result.buzzer === "buzzed") {
@@ -1122,7 +1122,7 @@
         stepText.buzzer.textContent = hardware.buzzer_ok ? "Buzzer is online and ready." : "Checking the buzzer.";
       }
 
-      modelCopy.textContent = ai.runtime || "CavaFace runs locally with ONNX Runtime QNN.";
+      modelCopy.textContent = ai.runtime || "Face recognition runs locally with ONNX Runtime QNN.";
       boardCopy.textContent = hardware.source || "RouterBridge reads the distance sensor and controls the buzzer.";
       renderKnownFaces(ai.known_faces);
       renderKnownFaceTable(ai.known_face_summary || [], (ai.known_face_summary || []).reduce((sum, item) => sum + (item.samples || 0), 0), "Local database");

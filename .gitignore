@@ -7,4 +7,5 @@ __pycache__/
 
 laptop_ai_guard/captures/
 laptop_ai_guard/known_faces/*.npz
+laptop_ai_guard/known_faces_mobilefacenet/*.npz
 laptop_ai_guard/models/

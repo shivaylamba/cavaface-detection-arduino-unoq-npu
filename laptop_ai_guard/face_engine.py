@@ -10,16 +10,20 @@ from PIL import Image
 
 
 FaceDetectorBackend = Literal["auto", "metadata", "mediapipe", "opencv", "center"]
+RecognitionModel = Literal["cavaface", "mobilefacenet"]
 ModelRuntime = Literal["auto", "qaihub", "onnx-qnn", "onnx-cpu"]
 
 MODELS_DIR = Path(__file__).resolve().parent / "models"
 DEFAULT_CAVAFACE_MODEL = MODELS_DIR / "cavaface" / "cavaface.onnx"
+DEFAULT_MOBILEFACENET_MODEL = MODELS_DIR / "mobilefacenet" / "mobilefacenet.onnx"
 DEFAULT_MEDIAPIPE_MODEL = MODELS_DIR / "media_pipe" / "media_pipe.onnx"
 
 MEDIAPIPE_INPUT_H = 256
 MEDIAPIPE_INPUT_W = 256
 CAVAFACE_INPUT_H = 112
 CAVAFACE_INPUT_W = 112
+MOBILEFACENET_INPUT_H = 112
+MOBILEFACENET_INPUT_W = 112
 
 _QNN_PLUGIN_REGISTERED = False
 
@@ -50,7 +54,7 @@ def _normalize_embedding(embedding: np.ndarray) -> np.ndarray:
     emb = np.asarray(embedding, dtype=np.float32).reshape(-1)
     norm = float(np.linalg.norm(emb))
     if norm <= 1e-9:
-        raise ValueError("CavaFace returned an empty embedding")
+        raise ValueError("Face recognition model returned an empty embedding")
     return emb / norm
 
 
@@ -289,9 +293,12 @@ class FaceDatabase:
     def __init__(self, names: list[str] | None = None, embeddings: np.ndarray | None = None):
         self.names = names or []
         if embeddings is None:
-            self.embeddings = np.empty((0, 512), dtype=np.float32)
+            self.embeddings = np.empty((0, 0), dtype=np.float32)
         else:
-            self.embeddings = np.asarray(embeddings, dtype=np.float32)
+            loaded = np.asarray(embeddings, dtype=np.float32)
+            if loaded.ndim == 1:
+                loaded = loaded[np.newaxis, :]
+            self.embeddings = loaded
 
     @classmethod
     def load(cls, path: str | Path) -> "FaceDatabase":
@@ -302,6 +309,10 @@ class FaceDatabase:
         data = np.load(db_path, allow_pickle=False)
         names = [str(name) for name in data["names"].tolist()]
         embeddings = np.asarray(data["embeddings"], dtype=np.float32)
+        if embeddings.ndim == 1:
+            embeddings = embeddings[np.newaxis, :]
+        if len(names) != int(embeddings.shape[0]):
+            raise ValueError(f"Database names/embeddings length mismatch in {db_path}")
         return cls(names, embeddings)
 
     def save(self, path: str | Path) -> None:
@@ -319,6 +330,11 @@ class FaceDatabase:
             return 0
 
         new_embeddings = np.vstack(rows).astype(np.float32)
+        if self.embeddings.size != 0 and self.embeddings.shape[1] != new_embeddings.shape[1]:
+            raise ValueError(
+                f"Embedding dimension mismatch: database has {self.embeddings.shape[1]} values, "
+                f"new model produced {new_embeddings.shape[1]} values. Use a separate database path."
+            )
         if self.embeddings.size == 0:
             self.embeddings = new_embeddings
         else:
@@ -649,6 +665,10 @@ class _OnnxCavaFaceRuntime:
 
 
 class CavaFaceRecognizer:
+    display_name = "CavaFace"
+    database_id = "cavaface"
+    embedding_size = 512
+
     def __init__(
         self,
         use_flip: bool = False,
@@ -732,3 +752,99 @@ class CavaFaceRecognizer:
         with Image.open(path) as image:
             frame = CameraFrame(_rgb_array_from_pil(image))
         return self.embedding_from_frame(frame)
+
+
+class MobileFaceNetRecognizer:
+    display_name = "MobileFaceNet"
+    database_id = "mobilefacenet"
+    embedding_size = 128
+
+    def __init__(
+        self,
+        face_margin: float = 0.10,
+        face_detector: FaceDetectorBackend = "auto",
+        detector_model_path: str | Path | None = None,
+        model_runtime: ModelRuntime = "auto",
+        model_path: str | Path | None = None,
+        qnn_backend: Literal["htp", "cpu"] = "htp",
+        qnn_performance_mode: str = "burst",
+        qnn_profile_path: str | Path | None = None,
+        qnn_allow_cpu_fallback: bool = False,
+    ):
+        local_model_path = Path(model_path) if model_path is not None else (
+            DEFAULT_MOBILEFACENET_MODEL if DEFAULT_MOBILEFACENET_MODEL.exists() else None
+        )
+        runtime = _local_default_runtime(local_model_path) if model_runtime == "auto" else model_runtime
+        if runtime == "qaihub":
+            raise RuntimeError("MobileFaceNet is available through local ONNX only. Use --model-runtime onnx-qnn or onnx-cpu.")
+
+        detector_runtime: Literal["onnx-qnn", "onnx-cpu"] = "onnx-qnn" if runtime == "onnx-qnn" else "onnx-cpu"
+        self.detector = FaceDetector(
+            face_detector,
+            face_margin=face_margin,
+            detector_model_path=detector_model_path,
+            detector_runtime=detector_runtime,
+            qnn_backend=qnn_backend,
+            qnn_performance_mode=qnn_performance_mode,
+            qnn_profile_path=qnn_profile_path,
+            qnn_allow_cpu_fallback=qnn_allow_cpu_fallback,
+        )
+        self.input_height = MOBILEFACENET_INPUT_H
+        self.input_width = MOBILEFACENET_INPUT_W
+
+        if local_model_path is None:
+            raise ValueError(
+                f"--model-path is required for MobileFaceNet because {DEFAULT_MOBILEFACENET_MODEL} does not exist."
+            )
+
+        self.runtime = _OnnxCavaFaceRuntime(
+            model_path=local_model_path,
+            runtime=runtime,
+            use_flip=False,
+            input_height=self.input_height,
+            input_width=self.input_width,
+            qnn_backend=qnn_backend,
+            qnn_performance_mode=qnn_performance_mode,
+            qnn_profile_path=qnn_profile_path,
+            qnn_allow_cpu_fallback=qnn_allow_cpu_fallback,
+        )
+
+    @property
+    def runtime_description(self) -> str:
+        return f"MobileFaceNet {self.runtime.description}; detector={self.detector.description}"
+
+    def detect_largest_face(self, frame: object) -> FaceCrop | None:
+        return self.detector.detect_largest_face(frame)
+
+    def embedding_from_frame(self, frame: object) -> np.ndarray:
+        face = self.detect_largest_face(frame)
+        if face is None:
+            raise ValueError("No face detected")
+        return _normalize_embedding(self.runtime.predict_features(face.image_rgb))
+
+    def embedding_from_face_image(self, image_rgb: np.ndarray) -> np.ndarray:
+        return _normalize_embedding(self.runtime.predict_features(image_rgb))
+
+    def embedding_from_bgr(self, frame_bgr: np.ndarray) -> np.ndarray:
+        try:
+            import cv2  # type: ignore[import-not-found]
+        except Exception as exc:
+            raise RuntimeError("embedding_from_bgr requires OpenCV; use embedding_from_frame instead.") from exc
+
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        return self.embedding_from_frame(CameraFrame(frame_rgb))
+
+    def embedding_from_image_path(self, image_path: str | Path) -> np.ndarray:
+        path = Path(image_path)
+        if not path.exists():
+            raise ValueError(f"Could not read image: {path}")
+        with Image.open(path) as image:
+            frame = CameraFrame(_rgb_array_from_pil(image))
+        return self.embedding_from_frame(frame)
+
+    def embedding_from_face_image_path(self, image_path: str | Path) -> np.ndarray:
+        path = Path(image_path)
+        if not path.exists():
+            raise ValueError(f"Could not read image: {path}")
+        with Image.open(path) as image:
+            return self.embedding_from_face_image(_rgb_array_from_pil(image))

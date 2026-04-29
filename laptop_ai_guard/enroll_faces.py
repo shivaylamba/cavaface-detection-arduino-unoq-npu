@@ -9,11 +9,18 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from face_engine import CameraFrame, CavaFaceRecognizer, FaceDatabase
+from face_engine import CameraFrame, CavaFaceRecognizer, FaceDatabase, MobileFaceNetRecognizer
 
 
-DEFAULT_DATABASE = Path(__file__).resolve().parent / "known_faces" / "embeddings.npz"
+DEFAULT_CAVAFACE_DATABASE = Path(__file__).resolve().parent / "known_faces" / "embeddings.npz"
+DEFAULT_MOBILEFACENET_DATABASE = Path(__file__).resolve().parent / "known_faces_mobilefacenet" / "embeddings.npz"
 DEFAULT_CAPTURE_DIR = Path(__file__).resolve().parent / "captures"
+
+
+def default_database_for_model(model_name: str) -> Path:
+    if model_name == "mobilefacenet":
+        return DEFAULT_MOBILEFACENET_DATABASE
+    return DEFAULT_CAVAFACE_DATABASE
 
 
 def clean_name(name: str) -> str:
@@ -45,6 +52,9 @@ def capture_samples(
             open_browser=not no_open_browser,
             browser_app="",
             first_frame_timeout_s=browser_timeout,
+            capture_dir=output_dir,
+            demo_title="AI Guard Enrollment",
+            demo_subtitle="Capture face samples for the local demo database",
         ).start()
     else:
         cap = open_camera(camera_index, opencv_backend)
@@ -100,27 +110,42 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--browser-timeout", type=float, default=60.0, help="Seconds to wait for browser frames.")
     parser.add_argument("--no-open-browser", action="store_true", help="Print the browser camera URL without opening it.")
     parser.add_argument("--samples", type=int, default=8, help="Number of webcam samples to capture.")
-    parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE, help="Embedding database path.")
+    parser.add_argument(
+        "--recognition-model",
+        choices=("mobilefacenet", "cavaface"),
+        default=os.environ.get("FACE_RECOGNITION_MODEL", "mobilefacenet").lower(),
+        help="Face embedding model to use.",
+    )
+    parser.add_argument(
+        "--database",
+        type=Path,
+        default=None,
+        help="Embedding database path. Defaults to a model-specific database.",
+    )
     parser.add_argument("--captures-dir", type=Path, default=DEFAULT_CAPTURE_DIR, help="Where webcam samples are saved.")
-    parser.add_argument("--flip", action="store_true", help="Use CavaFace flip ensemble for embeddings.")
+    parser.add_argument("--flip", action="store_true", help="Use CavaFace flip ensemble for embeddings. Ignored by MobileFaceNet.")
     parser.add_argument(
         "--face-detector",
         choices=("auto", "metadata", "mediapipe", "opencv", "center"),
         default="auto",
         help="Face crop source. auto uses MediaPipe if its model is present, then browser metadata/OpenCV/center.",
     )
+    model_path_default = (
+        os.environ.get("FACE_MODEL_PATH")
+        or os.environ.get("MOBILEFACENET_MODEL_PATH")
+        or os.environ.get("CAVAFACE_MODEL_PATH")
+    )
     parser.add_argument(
         "--model-runtime",
         choices=("auto", "qaihub", "onnx-qnn", "onnx-cpu"),
         default="auto",
-        help="CavaFace runtime. Use onnx-qnn with an exported CavaFace ONNX model for the X Elite NPU.",
+        help="Model runtime. Use onnx-qnn with local ONNX models for the X Elite NPU.",
     )
-    model_path_default = os.environ.get("CAVAFACE_MODEL_PATH")
     parser.add_argument(
         "--model-path",
         type=Path,
         default=Path(model_path_default) if model_path_default else None,
-        help="Path to a CavaFace .onnx file or QNN ONNX folder.",
+        help="Path to the selected recognizer .onnx file or QNN ONNX folder.",
     )
     detector_model_default = os.environ.get("FACE_DETECTOR_MODEL_PATH")
     parser.add_argument(
@@ -139,6 +164,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     name = clean_name(args.name)
+    if args.database is None:
+        args.database = default_database_for_model(args.recognition_model)
 
     image_paths = [Path(path) for path in args.image]
     if args.camera:
@@ -160,8 +187,7 @@ def main() -> None:
     if not image_paths:
         raise SystemExit("Provide at least one --image or use --camera.")
 
-    recognizer = CavaFaceRecognizer(
-        use_flip=args.flip,
+    common = dict(
         face_detector=args.face_detector,
         model_runtime=args.model_runtime,
         model_path=args.model_path,
@@ -171,6 +197,10 @@ def main() -> None:
         qnn_profile_path=args.qnn_profile_path,
         qnn_allow_cpu_fallback=args.qnn_allow_cpu_fallback,
     )
+    if args.recognition_model == "mobilefacenet":
+        recognizer = MobileFaceNetRecognizer(**common)
+    else:
+        recognizer = CavaFaceRecognizer(use_flip=args.flip, **common)
     embeddings = []
     for path in image_paths:
         try:
