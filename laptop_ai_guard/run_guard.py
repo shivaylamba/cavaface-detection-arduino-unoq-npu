@@ -1461,7 +1461,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--browser-app", default=default_browser_app(), help="macOS browser app to open for camera capture.")
     parser.add_argument("--browser-timeout", type=float, default=60.0, help="Seconds to wait for browser frames.")
     parser.add_argument("--no-open-browser", action="store_true", help="Print the browser camera URL without opening it.")
-    parser.add_argument("--demo-title", default="Lenskart AI Guard Demo", help="Title shown on the browser demo dashboard.")
+    parser.add_argument("--demo-title", default="AI Guard Demo", help="Title shown on the browser demo dashboard.")
     parser.add_argument(
         "--demo-subtitle",
         default="Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer",
