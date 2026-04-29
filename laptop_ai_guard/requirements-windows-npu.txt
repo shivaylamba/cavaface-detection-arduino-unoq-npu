@@ -1,0 +1,5 @@
+numpy
+pillow
+pyserial
+onnxruntime>=1.24.4
+onnxruntime-qnn>=2.0.0

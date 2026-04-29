@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Face Guard Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #14211f;
+      --muted: #66736f;
+      --line: #d7dedb;
+      --panel: #ffffff;
+      --page: #f4f7f3;
+      --teal: #007f72;
+      --green: #20a464;
+      --lime: #d7f166;
+      --amber: #e29a22;
+      --red: #c94444;
+      --dark: #0f1716;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--page);
+      color: var(--ink);
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 14px clamp(16px, 3vw, 34px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--dark);
+      color: var(--lime);
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(20px, 2.2vw, 30px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .top-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7faf8;
+    }
+
+    button {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    .tab-button,
+    .primary-button,
+    .secondary-button {
+      min-height: 36px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      padding: 8px 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .tab-button {
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .tab-button.active {
+      color: var(--ink);
+      background: var(--panel);
+      border-color: var(--line);
+    }
+
+    .primary-button {
+      background: var(--dark);
+      color: var(--lime);
+    }
+
+    .primary-button:disabled {
+      cursor: wait;
+      opacity: 0.58;
+    }
+
+    .secondary-button {
+      background: #edf4f1;
+      color: #1b4b44;
+      border-color: var(--line);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 4px rgba(226, 154, 34, 0.16);
+    }
+
+    .dot.live {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(32, 164, 100, 0.18);
+    }
+
+    main {
+      padding: clamp(16px, 3vw, 34px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr);
+      grid-template-rows: auto auto;
+      gap: 18px;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: grid; }
+
+    .management-screen {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto;
+    }
+
+    .camera-panel,
+    .decision-panel,
+    .flow-panel,
+    .architecture-panel,
+    .database-panel,
+    .enroll-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .camera-panel {
+      min-height: 0;
+    }
+
+    .video-wrap {
+      position: relative;
+      background: #080d0c;
+      aspect-ratio: 16 / 9;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .camera-ribbon {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: #f6fbfa;
+      font-size: 14px;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: rgba(10, 17, 16, 0.72);
+      color: #f7fbfa;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .decision-panel {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      min-height: 0;
+    }
+
+    .decision-main {
+      padding: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-kicker {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      font-weight: 700;
+    }
+
+    .result-title {
+      margin-top: 8px;
+      font-size: clamp(25px, 3vw, 38px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .result-copy {
+      margin-top: 10px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 15px;
+    }
+
+    .result-known .result-title { color: var(--green); }
+    .result-unknown .result-title,
+    .result-error .result-title { color: var(--red); }
+    .result-checking .result-title { color: var(--teal); }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric {
+      padding: 16px 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .metric:last-child { border-right: 0; }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .metric-value {
+      margin-top: 6px;
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .identity {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 16px;
+      padding: 18px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      min-height: 132px;
+    }
+
+    .capture {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      background: #e8eeeb;
+      object-fit: cover;
+      display: none;
+    }
+
+    .avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      background: var(--dark);
+      color: var(--lime);
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .person-name {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .person-detail {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .event-list {
+      min-height: 0;
+      padding: 8px 18px 18px;
+      overflow: auto;
+      max-height: 210px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #edf1ef;
+      font-size: 13px;
+    }
+
+    .event:last-child { border-bottom: 0; }
+
+    .event-time {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .event-title {
+      font-weight: 800;
+    }
+
+    .event-text {
+      margin-top: 3px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .flow-panel,
+    .architecture-panel {
+      grid-column: 1 / -1;
+      padding: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-end;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 112px;
+      background: #fbfcfb;
+      position: relative;
+    }
+
+    .step.active {
+      border-color: var(--teal);
+      box-shadow: inset 0 0 0 2px rgba(0, 127, 114, 0.12);
+    }
+
+    .step.done {
+      border-color: rgba(32, 164, 100, 0.45);
+      background: #f6fbf7;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--dark);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .step h3 {
+      margin-top: 12px;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .step p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .architecture-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .node {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 92px;
+      background: #fbfcfb;
+    }
+
+    .node-title {
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .node-copy {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .known-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .known-chip {
+      padding: 6px 9px;
+      border-radius: 8px;
+      background: #edf4f1;
+      color: #1b4b44;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .database-panel,
+    .enroll-panel {
+      padding: 20px;
+    }
+
+    .database-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .summary-tile,
+    .face-row,
+    .enroll-form,
+    .enroll-preview {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfb;
+    }
+
+    .summary-tile {
+      padding: 16px;
+    }
+
+    .summary-value {
+      margin-top: 8px;
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .face-table {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .face-row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 12px;
+    }
+
+    .face-badge {
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--dark);
+      color: var(--lime);
+      font-weight: 800;
+    }
+
+    .face-count {
+      color: var(--muted);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .enroll-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 18px;
+      align-items: start;
+      margin-top: 16px;
+    }
+
+    .enroll-form {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      font: inherit;
+      padding: 9px 11px;
+    }
+
+    .enroll-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .enroll-status {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .enroll-preview {
+      overflow: hidden;
+    }
+
+    .enroll-preview video {
+      aspect-ratio: 4 / 3;
+      background: #080d0c;
+    }
+
+    .preview-footer {
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    canvas { display: none; }
+
+    @media (max-width: 980px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-status { white-space: normal; }
+
+      .tabs {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .decision-panel {
+        grid-row: auto;
+      }
+
+      .flow,
+      .architecture-row,
+      .database-summary,
+      .enroll-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      main { padding: 12px; }
+
+      .camera-ribbon,
+      .section-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .metrics,
+      .identity,
+      .flow,
+      .architecture-row,
+      .database-summary,
+      .enroll-grid,
+      .face-row {
+        grid-template-columns: 1fr;
+      }
+
+      .metric {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metric:last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="mark">LK</div>
+        <div>
+          <h1 id="demo-title">Lenskart AI Guard Demo</h1>
+          <p class="subtitle" id="demo-subtitle">Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer</p>
+        </div>
+      </div>
+      <nav class="tabs" aria-label="Demo views">
+        <button class="tab-button active" data-view="demo" type="button">Live Demo</button>
+        <button class="tab-button" data-view="known" type="button">Known Faces</button>
+        <button class="tab-button" data-view="enroll" type="button">Add Known Face</button>
+      </nav>
+      <div class="top-status">
+        <span class="dot" id="live-dot"></span>
+        <span id="top-status">Starting demo dashboard</span>
+      </div>
+    </header>
+
+    <main class="screen active" id="screen-demo">
+      <section class="camera-panel" aria-label="Live camera">
+        <div class="video-wrap">
+          <video id="video" autoplay playsinline muted></video>
+          <div class="camera-ribbon">
+            <span class="pill" id="camera-status">Starting camera</span>
+            <span class="pill" id="frame-status">Frames: 0</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="decision-panel result-idle" id="decision-panel" aria-label="Current decision">
+        <div class="decision-main">
+          <div class="result-kicker">Current outcome</div>
+          <div class="result-title" id="result-title">Waiting</div>
+          <p class="result-copy" id="result-copy">Bring a hand near the distance sensor to start a face check.</p>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Distance</div>
+            <div class="metric-value" id="distance-value">--</div>
+            <div class="metric-note" id="distance-note">Waiting for sensor</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Match score</div>
+            <div class="metric-value" id="score-value">--</div>
+            <div class="metric-note" id="score-note">Threshold: --</div>
+          </div>
+        </div>
+
+        <div class="identity">
+          <img class="capture" id="capture" alt="Latest check">
+          <div class="avatar" id="avatar">AI</div>
+          <div>
+            <div class="person-name" id="person-name">No check yet</div>
+            <div class="person-detail" id="person-detail">The next close-distance event will run face recognition.</div>
+          </div>
+        </div>
+
+        <div class="event-list" id="event-list"></div>
+      </section>
+
+      <section class="flow-panel" aria-label="Live demo flow">
+        <div class="section-head">
+          <h2>Live Demo Flow</h2>
+          <p class="section-note" id="flow-note">The screen follows the same sequence the hardware is running.</p>
+        </div>
+        <div class="flow">
+          <div class="step" id="step-presence">
+            <div class="step-number">1</div>
+            <h3>Customer approaches</h3>
+            <p id="presence-text">Waiting for the distance sensor.</p>
+          </div>
+          <div class="step" id="step-sensor">
+            <div class="step-number">2</div>
+            <h3>Arduino senses distance</h3>
+            <p id="sensor-text">UNO Q is connected to the Modulino Distance sensor.</p>
+          </div>
+          <div class="step" id="step-ai">
+            <div class="step-number">3</div>
+            <h3>Laptop checks the face</h3>
+            <p id="ai-text">CavaFace and the detector are ready.</p>
+          </div>
+          <div class="step" id="step-buzzer">
+            <div class="step-number">4</div>
+            <h3>Buzzer responds</h3>
+            <p id="buzzer-text">Known visitors stay quiet. Unknown visitors trigger the buzzer.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="architecture-panel" aria-label="Demo architecture">
+        <div class="section-head">
+          <h2>Retail Setup</h2>
+          <p class="section-note">One laptop, one UNO Q, and Modulino components working together.</p>
+        </div>
+        <div class="architecture-row">
+          <div class="node">
+            <div class="node-title">Camera</div>
+            <div class="node-copy">The browser sends live frames to the local Python app.</div>
+          </div>
+          <div class="node">
+            <div class="node-title">Laptop NPU</div>
+            <div class="node-copy" id="model-copy">CavaFace runs locally with ONNX Runtime QNN.</div>
+          </div>
+          <div class="node">
+            <div class="node-title">Arduino UNO Q</div>
+            <div class="node-copy" id="board-copy">RouterBridge reads the distance sensor and controls the buzzer.</div>
+          </div>
+          <div class="node">
+            <div class="node-title">Known Faces</div>
+            <div class="node-copy">Demo database:</div>
+            <div class="known-list" id="known-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <main class="screen management-screen" id="screen-known">
+      <section class="database-panel" aria-label="Known faces database">
+        <div class="section-head">
+          <div>
+            <h2>Known Faces Database</h2>
+            <p class="section-note">Local demo database used for face matching.</p>
+          </div>
+          <button class="secondary-button" id="refresh-known" type="button">Refresh</button>
+        </div>
+
+        <div class="database-summary">
+          <div class="summary-tile">
+            <div class="metric-label">People</div>
+            <div class="summary-value" id="known-people-count">--</div>
+          </div>
+          <div class="summary-tile">
+            <div class="metric-label">Face samples</div>
+            <div class="summary-value" id="known-sample-count">--</div>
+          </div>
+          <div class="summary-tile">
+            <div class="metric-label">Database file</div>
+            <div class="metric-note" id="known-db-path">Loading</div>
+          </div>
+        </div>
+
+        <div class="face-table" id="known-face-table"></div>
+      </section>
+    </main>
+
+    <main class="screen management-screen" id="screen-enroll">
+      <section class="enroll-panel" aria-label="Add known face">
+        <div class="section-head">
+          <div>
+            <h2>Add Known Face</h2>
+            <p class="section-note">Creates local face samples for the demo database.</p>
+          </div>
+        </div>
+
+        <div class="enroll-grid">
+          <form class="enroll-form" id="enroll-form">
+            <label>
+              Display name
+              <input id="enroll-name" name="name" autocomplete="off" placeholder="Example: Store Staff 1" maxlength="48">
+            </label>
+            <label>
+              Samples
+              <select id="enroll-samples" name="samples">
+                <option value="4">4 quick samples</option>
+                <option value="6" selected>6 balanced samples</option>
+                <option value="8">8 stronger samples</option>
+              </select>
+            </label>
+            <div class="enroll-actions">
+              <button class="primary-button" id="enroll-submit" type="submit">Add Known Face</button>
+              <span class="enroll-status" id="enroll-status">Ready</span>
+            </div>
+          </form>
+
+          <div class="enroll-preview">
+            <video id="enroll-video" autoplay playsinline muted></video>
+            <div class="preview-footer">Live camera preview</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const video = document.getElementById("video");
+    const enrollVideo = document.getElementById("enroll-video");
+    const canvas = document.getElementById("canvas");
+    const cameraStatus = document.getElementById("camera-status");
+    const frameStatus = document.getElementById("frame-status");
+    const topStatus = document.getElementById("top-status");
+    const liveDot = document.getElementById("live-dot");
+    const decisionPanel = document.getElementById("decision-panel");
+    const resultTitle = document.getElementById("result-title");
+    const resultCopy = document.getElementById("result-copy");
+    const distanceValue = document.getElementById("distance-value");
+    const distanceNote = document.getElementById("distance-note");
+    const scoreValue = document.getElementById("score-value");
+    const scoreNote = document.getElementById("score-note");
+    const personName = document.getElementById("person-name");
+    const personDetail = document.getElementById("person-detail");
+    const capture = document.getElementById("capture");
+    const avatar = document.getElementById("avatar");
+    const eventList = document.getElementById("event-list");
+    const knownList = document.getElementById("known-list");
+    const modelCopy = document.getElementById("model-copy");
+    const boardCopy = document.getElementById("board-copy");
+    const demoTitle = document.getElementById("demo-title");
+    const demoSubtitle = document.getElementById("demo-subtitle");
+    const tabButtons = Array.from(document.querySelectorAll(".tab-button"));
+    const screens = {
+      demo: document.getElementById("screen-demo"),
+      known: document.getElementById("screen-known"),
+      enroll: document.getElementById("screen-enroll")
+    };
+    const knownPeopleCount = document.getElementById("known-people-count");
+    const knownSampleCount = document.getElementById("known-sample-count");
+    const knownDbPath = document.getElementById("known-db-path");
+    const knownFaceTable = document.getElementById("known-face-table");
+    const refreshKnown = document.getElementById("refresh-known");
+    const enrollForm = document.getElementById("enroll-form");
+    const enrollName = document.getElementById("enroll-name");
+    const enrollSamples = document.getElementById("enroll-samples");
+    const enrollSubmit = document.getElementById("enroll-submit");
+    const enrollStatus = document.getElementById("enroll-status");
+    const steps = {
+      presence: document.getElementById("step-presence"),
+      sensor: document.getElementById("step-sensor"),
+      ai: document.getElementById("step-ai"),
+      buzzer: document.getElementById("step-buzzer")
+    };
+    const stepText = {
+      presence: document.getElementById("presence-text"),
+      sensor: document.getElementById("sensor-text"),
+      ai: document.getElementById("ai-text"),
+      buzzer: document.getElementById("buzzer-text")
+    };
+
+    let sent = 0;
+    let detector = null;
+    let capturing = false;
+    let lastCaptureUrl = "";
+
+    function initials(name) {
+      if (!name) return "AI";
+      return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "AI";
+    }
+
+    function setStep(name, state) {
+      steps[name].classList.remove("active", "done");
+      if (state) steps[name].classList.add(state);
+    }
+
+    function setResultClass(state) {
+      decisionPanel.className = `decision-panel result-${state || "idle"}`;
+    }
+
+    function renderEvents(events) {
+      eventList.innerHTML = "";
+      if (!events || events.length === 0) {
+        const row = document.createElement("div");
+        row.className = "event";
+        row.innerHTML = `<div class="event-time">--:--</div><div><div class="event-title">Ready</div><div class="event-text">Waiting for the first proximity event.</div></div>`;
+        eventList.appendChild(row);
+        return;
+      }
+
+      for (const event of events) {
+        const row = document.createElement("div");
+        row.className = "event";
+        row.innerHTML = `<div class="event-time"></div><div><div class="event-title"></div><div class="event-text"></div></div>`;
+        row.querySelector(".event-time").textContent = event.time || "";
+        row.querySelector(".event-title").textContent = event.title || "";
+        row.querySelector(".event-text").textContent = event.message || "";
+        eventList.appendChild(row);
+      }
+    }
+
+    function renderKnownFaces(names) {
+      knownList.innerHTML = "";
+      const unique = Array.from(new Set(names || []));
+      if (unique.length === 0) {
+        const chip = document.createElement("span");
+        chip.className = "known-chip";
+        chip.textContent = "No entries";
+        knownList.appendChild(chip);
+        return;
+      }
+      for (const name of unique) {
+        const chip = document.createElement("span");
+        chip.className = "known-chip";
+        chip.textContent = name;
+        knownList.appendChild(chip);
+      }
+    }
+
+    function renderKnownFaceTable(people, total, dbPath) {
+      const rows = people || [];
+      knownPeopleCount.textContent = `${rows.length}`;
+      knownSampleCount.textContent = `${total || rows.reduce((sum, item) => sum + (item.samples || 0), 0)}`;
+      knownDbPath.textContent = dbPath || "Local database";
+      knownFaceTable.innerHTML = "";
+
+      if (rows.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "face-row";
+        empty.innerHTML = `<div class="face-badge">AI</div><div><div class="person-name">No known faces</div><div class="person-detail">Add a face from the enrollment screen.</div></div><div class="face-count">0 samples</div>`;
+        knownFaceTable.appendChild(empty);
+        return;
+      }
+
+      for (const person of rows) {
+        const row = document.createElement("div");
+        row.className = "face-row";
+        row.innerHTML = `<div class="face-badge"></div><div><div class="person-name"></div><div class="person-detail">Known visitor</div></div><div class="face-count"></div>`;
+        row.querySelector(".face-badge").textContent = initials(person.name);
+        row.querySelector(".person-name").textContent = person.name || "Unnamed";
+        row.querySelector(".face-count").textContent = `${person.samples || 0} sample${person.samples === 1 ? "" : "s"}`;
+        knownFaceTable.appendChild(row);
+      }
+    }
+
+    function renderKnownFacesUnavailable(message) {
+      knownPeopleCount.textContent = "--";
+      knownSampleCount.textContent = "--";
+      knownDbPath.textContent = "Python app not connected";
+      knownFaceTable.innerHTML = "";
+      const row = document.createElement("div");
+      row.className = "face-row";
+      row.innerHTML = `<div class="face-badge">AI</div><div><div class="person-name">Open the live app URL</div><div class="person-detail"></div></div><div class="face-count">Offline</div>`;
+      row.querySelector(".person-detail").textContent = message;
+      knownFaceTable.appendChild(row);
+    }
+
+    async function refreshKnownFaces() {
+      if (window.location.protocol === "file:") {
+        renderKnownFacesUnavailable("Start the Python demo and open http://127.0.0.1:8765/ instead of this file preview.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/known-faces", { cache: "no-store" });
+        if (res.status === 404) {
+          throw new Error("Restart the Python demo so the Known Faces API is available.");
+        }
+        const body = await res.json();
+        if (!body.ok) throw new Error(body.error || "Could not load known faces");
+        renderKnownFaceTable(body.people, body.total_embeddings, body.database);
+      } catch (err) {
+        renderKnownFacesUnavailable(err.message || "Waiting for Python bridge.");
+      }
+    }
+
+    function showView(view) {
+      for (const [name, screen] of Object.entries(screens)) {
+        screen.classList.toggle("active", name === view);
+      }
+      for (const button of tabButtons) {
+        button.classList.toggle("active", button.dataset.view === view);
+      }
+      if (view === "known") refreshKnownFaces();
+    }
+
+    function renderStatus(state) {
+      if (!state) return;
+      const camera = state.camera || {};
+      const hardware = state.hardware || {};
+      const result = state.result || {};
+      const ai = state.ai || {};
+
+      demoTitle.textContent = state.title || "Lenskart AI Guard Demo";
+      demoSubtitle.textContent = state.subtitle || "Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer";
+      topStatus.textContent = state.mode || "Demo running";
+      liveDot.classList.toggle("live", Boolean(camera.connected));
+
+      cameraStatus.textContent = camera.connected ? "Camera connected" : "Waiting for camera";
+      frameStatus.textContent = `Frames: ${camera.frames || sent || 0}`;
+
+      const distance = hardware.distance_mm;
+      const threshold = hardware.threshold_mm;
+      distanceValue.textContent = distance && distance > 0 ? `${distance}` : "--";
+      distanceNote.textContent = threshold ? `Trigger at ${threshold} mm` : "Waiting for sensor";
+
+      scoreValue.textContent = typeof result.score === "number" ? result.score.toFixed(3) : "--";
+      scoreNote.textContent = typeof result.threshold === "number" ? `Threshold: ${result.threshold.toFixed(2)}` : "Threshold: --";
+
+      setResultClass(result.state || "idle");
+      resultTitle.textContent = result.title || "Waiting";
+      resultCopy.textContent = result.message || "Bring a hand near the distance sensor to start a face check.";
+
+      const displayName = result.name || (result.state === "unknown" ? "Unknown visitor" : "No check yet");
+      personName.textContent = displayName;
+      personDetail.textContent = result.detail || "The next close-distance event will run face recognition.";
+      avatar.textContent = initials(result.name || result.state);
+
+      if (result.capture_url && result.capture_url !== lastCaptureUrl) {
+        lastCaptureUrl = result.capture_url;
+        capture.src = `${result.capture_url}?t=${Date.now()}`;
+        capture.style.display = "block";
+        avatar.style.display = "none";
+      } else if (!result.capture_url) {
+        capture.style.display = "none";
+        avatar.style.display = "grid";
+      }
+
+      if (hardware.near) {
+        setStep("presence", "done");
+        setStep("sensor", "done");
+        stepText.presence.textContent = "A customer is within the trigger distance.";
+        stepText.sensor.textContent = `${distance || "--"} mm reported by the distance sensor.`;
+      } else {
+        setStep("presence", "");
+        setStep("sensor", hardware.distance_ok ? "done" : "");
+        stepText.presence.textContent = "Waiting for the distance sensor.";
+        stepText.sensor.textContent = hardware.distance_ok ? "Distance sensor is online." : "Checking the distance sensor.";
+      }
+
+      if (result.state === "checking") {
+        setStep("ai", "active");
+        stepText.ai.textContent = "Face recognition is running on the laptop.";
+      } else if (["known", "unknown"].includes(result.state)) {
+        setStep("ai", "done");
+        stepText.ai.textContent = "Face recognition completed.";
+      } else {
+        setStep("ai", "");
+        stepText.ai.textContent = "CavaFace and the detector are ready.";
+      }
+
+      if (result.buzzer === "buzzed") {
+        setStep("buzzer", "active");
+        stepText.buzzer.textContent = "Buzzer alert sent to the Modulino Buzzer.";
+      } else if (result.buzzer === "quiet") {
+        setStep("buzzer", "done");
+        stepText.buzzer.textContent = "Known face matched, so the buzzer stayed quiet.";
+      } else {
+        setStep("buzzer", hardware.buzzer_ok ? "done" : "");
+        stepText.buzzer.textContent = hardware.buzzer_ok ? "Buzzer is online and ready." : "Checking the buzzer.";
+      }
+
+      modelCopy.textContent = ai.runtime || "CavaFace runs locally with ONNX Runtime QNN.";
+      boardCopy.textContent = hardware.source || "RouterBridge reads the distance sensor and controls the buzzer.";
+      renderKnownFaces(ai.known_faces);
+      renderKnownFaceTable(ai.known_face_summary || [], (ai.known_face_summary || []).reduce((sum, item) => sum + (item.samples || 0), 0), "Local database");
+      renderEvents(state.events);
+    }
+
+    async function pollStatus() {
+      try {
+        const res = await fetch("/status", { cache: "no-store" });
+        if (!res.ok) return;
+        renderStatus(await res.json());
+      } catch (err) {
+        topStatus.textContent = "Waiting for Python bridge";
+        liveDot.classList.remove("live");
+      }
+    }
+
+    async function startCamera() {
+      if ("FaceDetector" in window) {
+        try {
+          detector = new FaceDetector({ maxDetectedFaces: 1, fastMode: true });
+        } catch (err) {
+          detector = null;
+        }
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+        audio: false
+      });
+      video.srcObject = stream;
+      enrollVideo.srcObject = stream;
+      await video.play();
+      await enrollVideo.play();
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      cameraStatus.textContent = "Camera connected";
+      setInterval(captureFrame, 250);
+    }
+
+    async function captureFrame() {
+      if (capturing || !video.videoWidth || !video.videoHeight) return;
+      capturing = true;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const image = canvas.toDataURL("image/jpeg", 0.82);
+      let face = null;
+
+      if (detector) {
+        try {
+          const faces = await detector.detect(video);
+          if (faces.length) {
+            const box = faces[0].boundingBox;
+            face = { x: box.x, y: box.y, width: box.width, height: box.height };
+          }
+        } catch (err) {
+          detector = null;
+        }
+      }
+
+      try {
+        const res = await fetch("/frame", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ image, face })
+        });
+        if (res.ok) {
+          const body = await res.json();
+          sent = body.frames || sent + 1;
+          frameStatus.textContent = `Frames: ${sent}`;
+        }
+      } catch (err) {
+        cameraStatus.textContent = "Waiting for Python bridge";
+      } finally {
+        capturing = false;
+      }
+    }
+
+    startCamera().catch((err) => {
+      cameraStatus.textContent = `Camera failed: ${err.message || err}`;
+    });
+    for (const button of tabButtons) {
+      button.addEventListener("click", () => showView(button.dataset.view));
+    }
+    refreshKnown.addEventListener("click", refreshKnownFaces);
+    enrollForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      enrollSubmit.disabled = true;
+      enrollStatus.textContent = "Collecting face samples...";
+      try {
+        const res = await fetch("/enroll", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: enrollName.value,
+            samples: Number(enrollSamples.value)
+          })
+        });
+        const body = await res.json();
+        if (!body.ok) throw new Error(body.error || "Enrollment failed");
+        enrollStatus.textContent = `${body.name} added with ${body.added} sample${body.added === 1 ? "" : "s"}.`;
+        enrollName.value = "";
+        renderKnownFaceTable(body.people, body.total_embeddings, "Local database");
+        showView("known");
+      } catch (err) {
+        enrollStatus.textContent = err.message || "Enrollment failed";
+      } finally {
+        enrollSubmit.disabled = false;
+      }
+    });
+    pollStatus();
+    refreshKnownFaces();
+    setInterval(pollStatus, 350);
+  </script>
+</body>
+</html>

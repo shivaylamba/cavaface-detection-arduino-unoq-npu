@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.codex_tmp/
+*.log
+
+laptop_ai_guard/captures/
+laptop_ai_guard/known_faces/*.npz
+laptop_ai_guard/models/
