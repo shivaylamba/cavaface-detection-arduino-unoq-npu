@@ -53,7 +53,7 @@ def capture_samples(
             browser_app="",
             first_frame_timeout_s=browser_timeout,
             capture_dir=output_dir,
-            demo_title="AI Guard Enrollment",
+            demo_title="Known Face Enrollment",
             demo_subtitle="Capture face samples for the local demo database",
         ).start()
     else:

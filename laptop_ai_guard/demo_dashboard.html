@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Face Guard Demo</title>
+  <title>Local AI Face Demo</title>
   <style>
     :root {
       color-scheme: light;
@@ -684,7 +684,7 @@
       <div class="brand">
         <div class="mark">AI</div>
         <div>
-          <h1 id="demo-title">AI Guard Demo</h1>
+          <h1 id="demo-title">Local AI Face Demo</h1>
           <p class="subtitle" id="demo-subtitle">Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer</p>
         </div>
       </div>
@@ -1053,7 +1053,7 @@
       const result = state.result || {};
       const ai = state.ai || {};
 
-      demoTitle.textContent = state.title || "AI Guard Demo";
+      demoTitle.textContent = state.title || "Local AI Face Demo";
       demoSubtitle.textContent = state.subtitle || "Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer";
       topStatus.textContent = state.mode || "Demo running";
       liveDot.classList.toggle("live", Boolean(camera.connected));

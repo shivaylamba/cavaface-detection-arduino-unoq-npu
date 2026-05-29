@@ -109,7 +109,7 @@ def load_demo_dashboard_page() -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Face Guard Demo</title>
+  <title>Local AI Face Demo</title>
 </head>
 <body>
   <video id="video" autoplay playsinline muted style="width:100%;max-width:960px"></video>
@@ -1480,7 +1480,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--browser-app", default=default_browser_app(), help="macOS browser app to open for camera capture.")
     parser.add_argument("--browser-timeout", type=float, default=60.0, help="Seconds to wait for browser frames.")
     parser.add_argument("--no-open-browser", action="store_true", help="Print the browser camera URL without opening it.")
-    parser.add_argument("--demo-title", default="AI Guard Demo", help="Title shown on the browser demo dashboard.")
+    parser.add_argument("--demo-title", default="Local AI Face Demo", help="Title shown on the browser demo dashboard.")
     parser.add_argument(
         "--demo-subtitle",
         default="Arduino UNO Q, laptop NPU, camera, distance sensor, buzzer",

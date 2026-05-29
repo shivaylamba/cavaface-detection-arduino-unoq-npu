@@ -27,13 +27,13 @@ reproduce it end to end.
 ## Project Hub Field: Name
 
 ```text
-AI Guard Demo with Arduino UNO Q, Modulino Sensors, and Local NPU Face Recognition
+Local AI Face Demo with Arduino UNO Q, Modulino Sensors, and Local NPU Face Recognition
 ```
 
 Shorter option:
 
 ```text
-AI Guard Demo on Arduino UNO Q with Local Face Recognition
+Local AI Face Demo on Arduino UNO Q with Local Face Recognition
 ```
 
 ## Project Hub Field: Intro
@@ -113,7 +113,7 @@ Use a high-resolution photo of the final working setup.
 Suggested cover image composition:
 
 ```text
-Laptop screen showing the AI Guard Demo dashboard
+Laptop screen showing the Local AI Face Demo dashboard
 Arduino UNO Q visible next to the laptop
 Modulino Distance and Modulino Buzzer connected on the Qwiic chain
 No company logos or customer-identifying information
