@@ -50,10 +50,17 @@ if (-not (Test-Path $zipPath)) {
 }
 
 $releaseExists = $false
-& gh release view $Tag --repo $Repo *> $null
-if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+try {
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & gh release view $Tag --repo $Repo *> $null
+    if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
 
 if (-not $releaseExists) {
+    Write-Host "Release '$Tag' does not exist yet. Creating it..."
     & gh release create $Tag --repo $Repo --title $Title --notes "Runtime ONNX model assets for the Windows fleet installer. These files are intentionally distributed as release assets instead of normal git files."
     if ($LASTEXITCODE -ne 0) { throw "Failed to create GitHub release $Tag." }
 }
@@ -64,4 +71,3 @@ if ($LASTEXITCODE -ne 0) { throw "Failed to upload $zipPath to release $Tag." }
 Write-Host "Uploaded asset bundle."
 Write-Host "Installer URL:"
 Write-Host "https://github.com/$Repo/releases/latest/download/ArduinoFaceDemoAssets.zip"
-
