@@ -18,6 +18,8 @@ param(
     [string]$RepoUrl = "https://github.com/shivaylamba/cavaface-detection-arduino-unoq-npu.git",
     [string]$Branch = "main",
     [string]$AssetsPath = "",
+    [string]$AssetsUrl = "https://github.com/shivaylamba/cavaface-detection-arduino-unoq-npu/releases/latest/download/ArduinoFaceDemoAssets.zip",
+    [string]$GitHubToken = $env:GITHUB_TOKEN,
     [ValidateSet("mobilefacenet", "cavaface")]
     [string]$RecognitionModel = "mobilefacenet",
     [ValidateSet("routerbridge", "serial")]
@@ -37,6 +39,7 @@ param(
     [switch]$SkipArduinoPackages,
     [switch]$SkipFirmwareCompile,
     [switch]$UploadFirmware,
+    [switch]$SkipAssetDownload,
     [switch]$SkipSmokeTest,
     [switch]$NoDesktopShortcuts,
     [switch]$Force,
@@ -182,6 +185,47 @@ function Ensure-Repo {
         Invoke-External -FilePath "git" -Arguments @("clone", "--branch", $Branch, $RepoUrl, $RepoDir)
     }
     Write-Ok "Repository ready: $RepoDir"
+}
+
+function Get-AssetsRoot {
+    param([string]$RepoDir)
+    if ($AssetsPath) {
+        return (Resolve-Path $AssetsPath).Path
+    }
+    if ($SkipAssetDownload) {
+        return ""
+    }
+    if (-not $AssetsUrl) {
+        return ""
+    }
+
+    Write-Step "Downloading runtime assets"
+    $assetRoot = Join-Path (Split-Path $RepoDir -Parent) "_runtime_assets"
+    $zipPath = Join-Path (Split-Path $RepoDir -Parent) "ArduinoFaceDemoAssets.zip"
+    if (Test-Path $assetRoot) {
+        Remove-Item -LiteralPath $assetRoot -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $assetRoot | Out-Null
+
+    $headers = @{}
+    if ($GitHubToken) {
+        $headers["Authorization"] = "Bearer $GitHubToken"
+        $headers["Accept"] = "application/octet-stream"
+    }
+    Write-Host "    Downloading $AssetsUrl"
+    try {
+        if ($headers.Count -gt 0) {
+            Invoke-WebRequest -Uri $AssetsUrl -Headers $headers -OutFile $zipPath -UseBasicParsing
+        } else {
+            Invoke-WebRequest -Uri $AssetsUrl -OutFile $zipPath -UseBasicParsing
+        }
+    } catch {
+        throw "Could not download runtime assets from $AssetsUrl. Upload ArduinoFaceDemoAssets.zip to a GitHub Release, pass -AssetsPath, or rerun with a valid -AssetsUrl. Details: $($_.Exception.Message)"
+    }
+
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $assetRoot -Force
+    Write-Ok "Runtime assets downloaded and expanded to $assetRoot"
+    return $assetRoot
 }
 
 function Get-PythonCandidate {
@@ -582,6 +626,8 @@ if (-not (Test-CommandExists "git")) {
 $repoDir = Get-TargetRepoPath
 Ensure-Repo -RepoDir $repoDir
 $venvPython = Ensure-PythonVenv -RepoDir $repoDir
+$resolvedAssetsPath = Get-AssetsRoot -RepoDir $repoDir
+$AssetsPath = $resolvedAssetsPath
 Ensure-Assets -RepoDir $repoDir
 $arduinoCli = Ensure-ArduinoPackages -RepoDir $repoDir
 Write-Launchers -RepoDir $repoDir

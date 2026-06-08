@@ -14,6 +14,7 @@ The installer automates:
 - Arduino App Lab ARM64 installer download and install
 - UNO Q board core and required Arduino libraries
 - Runtime model/database asset copy
+- Runtime model/database asset download from GitHub Releases
 - Firmware compile, and optional firmware upload
 - One-click desktop launcher creation
 
@@ -26,7 +27,7 @@ https://docs.arduino.cc/software/app-lab/setup/windows/
 https://www.arduino.cc/en/software
 ```
 
-## 1. Create The Asset Bundle Once
+## 1. Create Or Publish The Asset Bundle Once
 
 Run this on the known-good laptop where the demo already works and the ignored
 model files are present:
@@ -63,17 +64,77 @@ laptop_ai_guard\known_faces\embeddings.npz                    optional
 MANIFEST.txt
 ```
 
+### Option A: Upload The Asset Bundle To GitHub Releases
+
+This is the recommended path for installing many laptops without USB.
+
+Do not commit the ONNX models directly to git. The CavaFace model is over the
+normal GitHub file-size limit, and large binary model files are better handled
+as Release assets.
+
+If you want the installer to download models from GitHub automatically, publish
+the zip as a release asset named:
+
+```text
+ArduinoFaceDemoAssets.zip
+```
+
+You can do that manually from the GitHub Releases UI, or with GitHub CLI:
+
+```powershell
+winget install --id GitHub.cli --exact
+gh auth login
+
+.\scripts\Publish-WindowsDemoAssets.ps1
+```
+
+By default, the publisher includes the model files but not known-face databases.
+Known-face databases contain biometric embeddings. Only include them if you are
+intentionally distributing those exact enrolled identities:
+
+```powershell
+.\scripts\Publish-WindowsDemoAssets.ps1 `
+  -IncludeKnownFaces `
+  -PublicBiometricDataAcknowledged
+```
+
+After the asset is uploaded, the fleet installer can download it from:
+
+```text
+https://github.com/shivaylamba/cavaface-detection-arduino-unoq-npu/releases/latest/download/ArduinoFaceDemoAssets.zip
+```
+
+### Option B: Use USB Or Network Share
+
+Use the folder or zip from `Prepare-WindowsDemoAssets.ps1` if the laptops will
+not have reliable internet or if the assets should not be hosted on GitHub.
+
 ## 2. Run The Installer On Each Laptop
 
 Open PowerShell as Administrator.
 
-If your asset bundle is a folder on a USB drive:
+If the asset bundle is uploaded to GitHub Releases, you do not need
+`-AssetsPath`:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force
 
 cd C:\Path\To\Downloaded\Repo
 
+.\scripts\Install-WindowsDemo.ps1 `
+  -InstallRoot C:\ArduinoFaceDemo `
+  -RecognitionModel mobilefacenet
+```
+
+If the release is private, set a token before running:
+
+```powershell
+$env:GITHUB_TOKEN = "YOUR_TOKEN_WITH_RELEASE_DOWNLOAD_ACCESS"
+```
+
+If your asset bundle is a folder on a USB drive:
+
+```powershell
 .\scripts\Install-WindowsDemo.ps1 `
   -InstallRoot C:\ArduinoFaceDemo `
   -AssetsPath E:\ArduinoFaceDemoAssets `
@@ -85,7 +146,6 @@ If you want to compile and upload the UNO Q firmware during install:
 ```powershell
 .\scripts\Install-WindowsDemo.ps1 `
   -InstallRoot C:\ArduinoFaceDemo `
-  -AssetsPath E:\ArduinoFaceDemoAssets `
   -RecognitionModel mobilefacenet `
   -UploadFirmware `
   -ArduinoPort COM3
@@ -153,6 +213,7 @@ Common options:
 
 ```powershell
 -AssetsPath E:\ArduinoFaceDemoAssets
+-AssetsUrl https://github.com/shivaylamba/cavaface-detection-arduino-unoq-npu/releases/latest/download/ArduinoFaceDemoAssets.zip
 -InstallRoot C:\ArduinoFaceDemo
 -RecognitionModel mobilefacenet
 -RecognitionModel cavaface
@@ -232,4 +293,3 @@ this in the Windows App Lab setup guide:
 ```text
 https://docs.arduino.cc/software/app-lab/setup/windows/
 ```
-
